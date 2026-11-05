@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Nix Launcher
+Comment=Minimalist black and white Minecraft launcher
+Exec=nix-launcher
+Icon=nix-launcher
+Terminal=false
+Categories=Game;
+StartupWMClass=nix-launcher
