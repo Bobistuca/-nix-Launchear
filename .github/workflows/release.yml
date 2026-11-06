@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev libegl1-mesa-dev libfuse2
+      - name: Build
+        run: cargo build --release
+      - name: Build .deb
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb --no-build
+          cp target/debian/*.deb nix-launcher_amd64.deb
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin
+          cp target/release/nix-launcher AppDir/usr/bin/
+          cp packaging/nix-launcher.desktop AppDir/
+          cp packaging/nix-launcher.svg AppDir/nix-launcher.svg
+          printf '#!/bin/sh\nexec "$(dirname "$(readlink -f "$0")")/usr/bin/nix-launcher" "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          curl -fL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir nix-launcher-x86_64.AppImage
+      - name: Build tarball
+        run: tar -czf nix-launcher-x86_64.tar.gz -C target/release nix-launcher
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            nix-launcher_amd64.deb
+            nix-launcher-x86_64.AppImage
+            nix-launcher-x86_64.tar.gz
+          generate_release_notes: true
